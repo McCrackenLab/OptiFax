@@ -20,12 +20,25 @@ classdef Optic < matlab.mixin.Copyable
 		Dispersion
 	end
 	properties (Dependent)
+		IncidentAngle
 		Length
 		OpticalPath
 		GroupDelay
 		RelativeGD
 		GDD
 	end
+
+	methods(Access = protected)
+      % Override copyElement method:
+      function cpObj = copyElement(obj)
+         % Make a shallow copy of all properties
+         cpObj = copyElement@matlab.mixin.Copyable(obj);
+         % Make a deep copy of the Deep object
+         cpObj.S1 = copy(obj.S1);
+		 cpObj.Bulk = copy(obj.Bulk);
+		 cpObj.S2 = copy(obj.S2);
+	  end
+	end	
 
 	methods
 		function obj = Optic(regimeStr,s1,material,length_m,theta,s2,celsius,parent)
@@ -48,7 +61,7 @@ classdef Optic < matlab.mixin.Copyable
 				if class(s1) ~= "OpticalSurface"
 					s1 = OpticalSurface(s1,material,theta,1,obj);
 				else
-					s1 = OpticalSurface(s1.Coating,material,theta,1,obj,s1.GDD);
+					% s1 = OpticalSurface(s1.Coating,material,theta,1,obj,s1.GDD);
 				end
 				obj.Regime = regimeStr;
 				obj.S1 = s1;
@@ -95,8 +108,6 @@ classdef Optic < matlab.mixin.Copyable
 		end
 
 		function GD_rel = get.RelativeGD(obj)
-			% GD = obj.GroupDelay;
-			% GD_rel = GD - GD(obj.SimWin.ReferenceIndex);
 			GD_rel = phi2GD(obj.Dispersion,obj.SimWin.DeltaOmega);
 		end
 
@@ -104,8 +115,12 @@ classdef Optic < matlab.mixin.Copyable
 			[~,GDD] = phi2GD(obj.Dispersion,obj.SimWin.DeltaOmega);
 		end
 
-		function set.Length(obj,l)
-			obj.Bulk.Length = l;
+		function theta = get.IncidentAngle(obj)
+			theta = obj.S1.IncidentAngle;
+		end
+
+		function set.IncidentAngle(obj,theta)
+			obj.S1.IncidentAngle = theta;
 		end
 
 		function l = get.Length(obj)
@@ -114,6 +129,10 @@ classdef Optic < matlab.mixin.Copyable
 			else
 				l = 0;
 			end
+		end
+
+		function set.Length(obj,l)
+			obj.Bulk.Length = l;
 		end
 
 		function opl = get.OpticalPath(obj)

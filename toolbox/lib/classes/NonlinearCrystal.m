@@ -10,7 +10,7 @@ classdef NonlinearCrystal < Waveguide
 		Uncertainty
 		DutyCycleOffset
 		StepSize = 1e-7;
-		Height = 1e-3;	% Crystal height in [m], used for fanout calcs.
+		Height = 1;				% Int for stepped, [m] for fanout.
 		VerticalPosition = 1;	% Int for stepped, [m] for fanout.
 	end
 	properties (Transient)
@@ -81,6 +81,8 @@ classdef NonlinearCrystal < Waveguide
 					case 2
 						grating = obj.fanout;
 					otherwise
+						obj.Height = uint8(n);
+						obj.VerticalPosition = uint8(obj.VerticalPosition);
 						grating = obj.GratingPeriod(obj.VerticalPosition);
 				end
 			else
@@ -112,13 +114,18 @@ classdef NonlinearCrystal < Waveguide
 			tss = fftshift(ts);
 		end
 
-		function fanoutplot(obj,sigrange,n_pos)
+		function scanplot(obj,sigrange,n_pos)
 			% n_pos = 5;
 			[gain,~,signal] = qpmgain(obj,obj.OptSim.PumpPulse,sigrange);
 			sig_unique = signal(:,1);
 			gain_sum = single(zeros(n_pos,length(gain(:,1))));
-			ys = linspace(0,obj.Height,n_pos);
 
+			if isinteger(obj.Height)
+				ys = 1:n_pos;
+			else
+				ys = linspace(0,obj.Height,n_pos);
+			end
+		
 			for n = 1:n_pos
 				obj.VerticalPosition = ys(n);
 				obj.pole;
@@ -128,19 +135,43 @@ classdef NonlinearCrystal < Waveguide
 				disp(['Step ', num2str(n) ,' complete'])
 			end
 
+			if isinteger(obj.Height)
+				ys = obj.GratingPeriod;
+			end
+
 			fh = figure;
 			axs = axes(fh);
-			% surf(axs,sig_unique,ys,gain_sum)
-			imagesc(axs,sig_unique,ys,gain_sum)
-				axs.YAxis.Direction = 'normal';
-			colormap(axs,"turbo")
-				axs.Color = [0 0 0];
-				axs.GridColor = [1 1 1];
-				axs.MinorGridColor = [1 1 1];
-				shading("interp")
+			if isinteger(obj.Height)
+				p = waterfall(axs,sig_unique,ys,gain_sum);
+					view(-0.01,30);
+					p.EdgeColor ='k';
+					p.LineWidth = 1.25;
+					p.FaceColor="flat";
+					p.FaceVertexCData = parula(n);
+					p.FaceAlpha = 0.7;
+					axs.Color = [1 1 1]*0.9;
+					axs.GridColor = [1 1 1]*0;
+					axs.MinorGridColor = [1 1 1]*0;
+					grid minor
+					
+
+				% p = plot(axs,sig_unique,gain_sum);
+				% 	legend(num2str(ys'))
+				% 
+					ylabel('Grating Period / m')
+			else
+				imagesc(axs,sig_unique,ys,gain_sum)
+					axs.YAxis.Direction = 'normal';
+					colormap(axs,"turbo")
+					axs.Color = [0 0 0];
+					axs.GridColor = [1 1 1];
+					axs.MinorGridColor = [1 1 1];
+					shading("interp")
+					colorbar;
+					ylabel('Crystal Y Position / m')
+			end
 			title('Full Temporal Overlap QPM')
 			xlabel('Signal Wavelength / m')
-			ylabel('Crystal Y Position / m')
 		end
 
 		function xtalplot(obj,sigrange)
